@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>商品推薦引擎・理專內部試算</title>
+<style>
+  :root{
+    --rail:#0f3f37;--rail2:#0b302a;--teal:#1d7a6b;--teal-deep:#15534a;--teal-soft:#e8f0ed;
+    --terra:#bf6b3a;--terra-deep:#a8572b;--terra-soft:#f3e3d3;
+    --cream:#f5f0e3;--paper:#fffdf8;--ink:#2a2925;--muted:#7a766c;
+    --line:#e6ddc9;--line-soft:#efe9da;
+    --c-paid:#a89a7d;--c-death:#1d7a6b;--c-pay:#bf6b3a;
+    --shadow:0 1px 2px rgba(60,50,30,.04),0 8px 24px rgba(60,50,30,.05);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--cream);color:var(--ink);font-family:"PingFang TC","Microsoft JhengHei","Noto Sans TC","Helvetica Neue",sans-serif;-webkit-font-smoothing:antialiased;line-height:1.55}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 22px 70px}
+  .topbar{background:linear-gradient(180deg,var(--rail),var(--rail2));color:#f3efe2;border-bottom:3px solid var(--terra)}
+  .topbar-inner{max-width:1180px;margin:0 auto;padding:24px 22px 26px;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap}
+  .eyebrow{font-size:11.5px;letter-spacing:.34em;color:#9fc4b9;font-weight:700;margin:0 0 7px}
+  .topbar h1{margin:0;font-size:26px;font-weight:800;letter-spacing:.01em}
+  .topbar h1 .accent{color:#ecb88e;font-weight:700}
+  .topbar p{margin:9px 0 0;font-size:13px;color:#b6cdc6;max-width:600px}
+  .stepflow{display:flex;align-items:center;gap:7px;font-size:11px;color:#9fc4b9;font-weight:700}
+  .stepflow .s{background:rgba(255,255,255,.07);padding:6px 11px;border-radius:7px;white-space:nowrap}
+  .stepflow .arr{color:#6f968c}
+  .disclaimer{background:#fbf3e9;border:1px solid #e6cfb2;border-radius:11px;padding:11px 16px;font-size:12px;color:#7a5a36;margin:18px 0 22px;display:flex;gap:10px;align-items:flex-start;line-height:1.7}
+  .disclaimer b{color:#a8572b}
+  .disclaimer .dot{flex:none;margin-top:3px;width:9px;height:9px;border-radius:50%;background:var(--terra)}
+  .layout{display:block}
+  .panel{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:16px 18px 18px;box-shadow:var(--shadow)}
+  .toolbar{margin-bottom:18px}
+  .fieldbar{display:flex;flex-wrap:wrap;gap:14px 16px;align-items:flex-start;margin-top:13px}
+  .fieldbar .field{margin-bottom:0;flex:1 1 150px;min-width:130px}
+  .fieldbar .field.f-age{flex:0 1 190px}
+  .fieldbar .field.f-cur{flex:0 1 150px}
+  .fieldbar .field.f-rate{flex:0 1 130px;min-width:110px}
+  .fieldbar .field.f-mode{flex:0 1 175px}
+  .fieldbar .field.f-amt{flex:1 1 150px}
+  .fieldbar .field.f-kind{flex:0 1 170px}
+  .fieldbar .field.f-eval{flex:0 1 175px}
+  .fieldbar .field.f-goal{flex:1 1 250px;min-width:220px}
+  .label-pill{display:inline-block;background:var(--teal-deep);color:#fff;font-size:12px;font-weight:700;letter-spacing:.06em;padding:5px 12px;border-radius:7px}
+  .panel-sub{font-size:12px;color:var(--muted);margin:10px 0 17px}
+  .field{margin-bottom:14px}
+  .field > label{display:block;font-size:12.5px;font-weight:700;color:var(--teal-deep);margin-bottom:6px}
+  .field > label .tip{font-weight:600;color:var(--muted);font-size:11px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .hint{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.55}
+  input[type=number],select{width:100%;font:inherit;font-size:14px;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:9px;padding:9px 11px}
+  input:focus,select:focus,button:focus-visible{outline:2px solid var(--teal);outline-offset:1px}
+  .seg{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+  .seg button{flex:1;font:inherit;font-size:13px;font-weight:700;border:0;background:#fff;color:var(--muted);padding:9px 0;cursor:pointer;transition:.12s}
+  .seg button[aria-pressed=true]{background:var(--teal-deep);color:#fff}
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{font:inherit;font-size:12.5px;font-weight:600;border:1px solid var(--line);background:#fff;color:var(--muted);padding:6px 13px;border-radius:20px;cursor:pointer;transition:.12s}
+  .chip[aria-pressed=true]{background:var(--teal-soft);border-color:var(--teal);color:var(--teal-deep)}
+  .dropdown{position:relative}
+  .dd-btn{width:100%;text-align:left;font:inherit;font-size:13.5px;background:#fff;border:1px solid var(--line);border-radius:9px;padding:9px 11px;cursor:pointer;color:var(--ink);display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .dd-btn #kindSummary{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .dd-btn .car{color:var(--muted);font-size:11px;flex:none}
+  .dd-panel{position:absolute;z-index:30;top:calc(100% + 5px);left:0;right:0;background:#fff;border:1px solid var(--line);border-radius:11px;padding:8px 12px 10px;box-shadow:0 10px 28px rgba(0,0,0,.12)}
+  .dd-panel .catgroup{font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.04em;margin:9px 0 2px}
+  .dd-panel .catgroup:first-child{margin-top:2px}
+  .dd-panel label{display:flex;align-items:center;gap:8px;font-size:13.5px;padding:5px 2px;cursor:pointer;color:var(--ink);font-weight:600}
+  .dd-panel input[type=checkbox]{width:16px;height:16px;accent-color:var(--teal-deep)}
+  .goalgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+  .goalgrid label{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700;border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 9px;cursor:pointer;color:var(--muted);transition:.12s}
+  .goalgrid label.on{border-color:var(--terra);background:var(--terra-soft);color:var(--terra-deep)}
+  .goalgrid input{position:absolute;opacity:0;width:0;height:0}
+  .goalgrid label .gx{flex:none;width:16px;height:16px;border-radius:5px;border:1.5px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff}
+  .goalgrid label.on .gx{background:var(--terra);border-color:var(--terra)}
+  .results-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:8px;flex-wrap:wrap}
+  .results-head .rt{font-size:18px;font-weight:800;color:var(--ink)}
+  .results-head .rt .by{color:var(--terra-deep);font-size:14px;font-weight:700}
+  .results-head .rc{font-size:12px;color:var(--muted)}
+  .sortnote{font-size:11.5px;color:var(--muted);margin:0 0 14px 1px}
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:17px 19px;margin-bottom:14px;position:relative;overflow:hidden;box-shadow:var(--shadow);transition:.15s}
+  .card.top{border-color:var(--terra);box-shadow:0 0 0 1px var(--terra),0 10px 30px rgba(160,80,40,.10)}
+  .card .rankbar{position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--line)}
+  .card.top .rankbar{background:linear-gradient(180deg,var(--terra),var(--terra-deep))}
+  .bestpill{position:absolute;top:0;right:0;background:var(--terra);color:#fff;font-size:10.5px;font-weight:800;letter-spacing:.05em;padding:4px 11px;border-radius:0 16px 0 11px}
+  .card-head{display:flex;align-items:flex-start;gap:13px;padding-left:6px}
+  .rankno{flex:none;width:36px;height:36px;border-radius:10px;background:var(--teal-soft);color:var(--teal-deep);font-size:18px;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .card.top .rankno{background:linear-gradient(135deg,var(--terra),var(--terra-deep));color:#fff}
+  .card-title{flex:1;min-width:0;padding-right:48px}
+  .card-title .nm{font-size:15.5px;font-weight:800;color:var(--ink);line-height:1.4}
+  .card-title .ins{font-size:11.5px;color:var(--muted);margin-top:2px}
+  .card-title .tags{margin-top:7px;display:flex;gap:6px;flex-wrap:wrap}
+  .tag{font-size:11px;font-weight:700;padding:3px 8px;border-radius:5px;background:#f0ece0;color:#6c685e;white-space:nowrap}
+  .tag.t-cur{background:var(--terra-soft);color:var(--terra-deep)}
+  .tag.t-big{background:#e3eee9;color:var(--teal-deep)}
+  .tag.t-sub{background:var(--teal-soft);color:var(--teal-deep)}
+  .tag.t-age{background:#ece6d5;color:#76704f}
+  .tag.t-term{background:#efe7d6;color:#8a7340}
+  .reco{margin:13px 6px 0;background:linear-gradient(90deg,#fbf3e8,#fdfaf3);border-left:3px solid var(--terra);border-radius:0 9px 9px 0;padding:9px 13px;font-size:12px;color:#5e4a37}
+  .reco b{color:var(--terra-deep)}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:9px;margin-top:13px;margin-left:6px}
+  .tile{background:#fff;border:1px solid var(--line);border-radius:11px;padding:11px 13px;position:relative;overflow:hidden}
+  .tile:before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c-paid)}
+  .tile.f-return:before{background:var(--terra)}
+  .tile.f-protect:before,.tile.f-coverage:before{background:var(--teal)}
+  .tile.f-cost:before{background:var(--c-paid)}
+  .tile .tl{font-size:10.5px;font-weight:800;color:var(--muted);letter-spacing:.03em}
+  .tile .tv{font-size:19px;font-weight:800;color:var(--ink);margin-top:5px;line-height:1.1}
+  .tile.f-return .tv{color:var(--terra-deep)}
+  .tile.f-protect .tv,.tile.f-coverage .tv{color:var(--teal-deep)}
+  .tile .tv.na{color:#bbb5a8;font-size:15px}
+  .tile .tv .ng{font-size:10px;color:var(--terra-deep);font-weight:700;margin-left:4px;vertical-align:middle}
+  .tile .ts{font-size:11px;color:var(--muted);margin-top:4px}
+  .tile .ts small{color:#9a9385}
+  .detail-toggle{margin:14px 0 0 6px;font:inherit;font-size:12.5px;font-weight:700;color:var(--teal-deep);background:none;border:0;cursor:pointer;padding:4px 0;display:inline-flex;align-items:center;gap:6px}
+  .detail-toggle .ar{transition:transform .15s}
+  .detail-toggle[aria-expanded=true] .ar{transform:rotate(90deg)}
+  .detail{margin:13px 0 2px 6px;border-top:1px dashed var(--line);padding-top:15px}
+  .dh{font-size:12px;font-weight:800;color:var(--teal-deep);margin:17px 0 9px}
+  .dh:first-child{margin-top:0}
+  .chartwrap{position:relative;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 12px 8px}
+  .chartwrap svg{display:block;cursor:crosshair}
+  .chart-legend{display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin-top:8px}
+  .chart-legend span{display:inline-flex;align-items:center;gap:6px}
+  .chart-legend i{width:14px;height:3px;border-radius:2px;display:inline-block}
+  .chart-tip{position:absolute;pointer-events:none;background:#1f2724;color:#f1efe8;border-radius:9px;padding:8px 11px;font-size:11.5px;line-height:1.7;box-shadow:0 8px 22px rgba(0,0,0,.22);z-index:5;white-space:nowrap;display:none}
+  .chart-tip b{color:#ecb88e;font-size:12px}
+  .chart-tip div{display:flex;align-items:center;gap:6px}
+  .chart-tip i{width:9px;height:9px;border-radius:2px;display:inline-block}
+  .dtable{width:100%;border-collapse:collapse;font-size:12px}
+  .dtable th,.dtable td{padding:6px 7px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+  .dtable th{color:var(--muted);font-weight:700;font-size:11px;background:var(--cream)}
+  .dtable td:first-child,.dtable th:first-child{text-align:left}
+  .dtable .hi td{background:#fbf4ea}
+  .dtable .hicell{color:var(--terra-deep);font-weight:800}
+  .assume{font-size:11.5px;color:var(--muted);margin-top:13px;line-height:1.75}
+  .assume b{color:var(--ink)}
+  .empty{background:var(--paper);border:1px dashed var(--line);border-radius:16px;padding:42px 22px;text-align:center;color:var(--muted);font-size:13.5px}
+  .pagetag{position:fixed;right:14px;bottom:12px;background:rgba(15,63,55,.92);color:#dfeae5;font-size:11px;font-weight:700;padding:6px 12px;border-radius:7px}
+  @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="topbar"><div class="topbar-inner">
+  <div>
+    <p class="eyebrow">優化・③ 找商品</p>
+    <h1>商品推薦引擎 <span class="accent">｜ 算出「最適配的是哪一張」</span></h1>
+    <p>輸入預算與需求目的，系統依官方費率拆解後算出回本年、IRR 與逐年保障，排出最適配的商品。</p>
+  </div>
+  <div class="stepflow">
+    <span class="s">商品貼標</span><span class="arr">›</span>
+    <span class="s">費率表拆解</span><span class="arr">›</span>
+    <span class="s">條件輸入</span><span class="arr">›</span>
+    <span class="s">排序輸出</span>
+  </div>
+</div></div>
+
+<div class="wrap">
+  <div class="disclaimer"><span class="dot"></span>
+    <div><b>本工具僅供理財顧問內部試算參考。</b>　所有數值依各保險公司商品 DM 之示範案例與假設條件（分紅採中分紅、利變採假設宣告利率，皆非保證）計算並按預算等比換算；實際保費、給付、解約金與報酬一切以各保險公司正式試算及保單條款為準，不得作為對客報價或給付承諾之依據。</div>
+  </div>
+
+  <div class="layout">
+    <div class="panel toolbar">
+      <span class="label-pill">條件輸入</span>
+      <div class="fieldbar">
+        <div class="field f-age row2">
+          <div><label for="age">投保年齡</label>
+            <input id="age" type="number" min="0" max="90" value="40" /></div>
+          <div><label>性別</label>
+            <div class="seg" id="sex">
+              <button type="button" data-v="男" aria-pressed="true">男</button>
+              <button type="button" data-v="女" aria-pressed="false">女</button>
+            </div></div>
+        </div>
+
+        <div class="field f-cur"><label>幣別</label>
+          <div class="chips" id="curs">
+            <button type="button" class="chip" data-v="台幣" aria-pressed="true">台幣</button>
+            <button type="button" class="chip" data-v="美元" aria-pressed="true">美元</button>
+          </div></div>
+
+        <div class="field f-rate" id="rateField"><label for="rate">美元匯率</label>
+          <input id="rate" type="number" min="1" step="0.1" value="32.5" /></div>
+
+        <div class="field f-mode"><label>投入方式</label>
+          <div class="seg" id="mode">
+            <button type="button" data-v="年繳" aria-pressed="false">年繳</button>
+            <button type="button" data-v="總繳" aria-pressed="true">總繳</button>
+          </div></div>
+
+        <div class="field f-amt"><label for="amount" id="amountLabel">投入金額（台幣）</label>
+          <input id="amount" type="number" min="0" step="100000" value="3000000" /></div>
+
+        <div class="field f-kind"><label>險種</label>
+          <div class="dropdown">
+            <button type="button" class="dd-btn" id="kindBtn" aria-expanded="false">
+              <span id="kindSummary">全部</span><span class="car">▾</span></button>
+            <div class="dd-panel" id="kindPanel" hidden>
+              <div class="catgroup">儲蓄養老</div>
+              <label><input type="checkbox" data-v="固定養老" checked> 固定養老</label>
+              <label><input type="checkbox" data-v="美元利變還本" checked> 美元利變還本</label>
+              <label><input type="checkbox" data-v="分紅" checked> 分紅</label>
+              <div class="catgroup">家庭保障</div>
+              <label><input type="checkbox" data-v="終身壽險" checked> 終身壽險</label>
+              <label><input type="checkbox" data-v="定期壽險" checked> 定期壽險</label>
+            </div>
+          </div></div>
+
+        <div class="field f-eval"><label for="evalYear">試算時點 <span class="tip">（持有第幾年）</span></label>
+          <select id="evalYear">
+            <option value="5">第 5 年</option><option value="10">第 10 年</option>
+            <option value="15">第 15 年</option><option value="20" selected>第 20 年</option>
+            <option value="30">第 30 年</option><option value="40">第 40 年</option>
+            <option value="50">第 50 年（含高齡/祝壽）</option>
+          </select>
+          <div class="hint">同時決定 IRR 與身故金看哪一年，取最近 DM 揭露年度。</div></div>
+
+        <div class="field f-goal"><label>需求目的 <span class="tip">（可複選）</span></label>
+          <div class="goalgrid" id="goals">
+            <label data-g="return" class="on"><span class="gx">✓</span>報酬最大化<input type="checkbox" checked></label>
+            <label data-g="protect"><span class="gx"></span>保障最大化<input type="checkbox"></label>
+            <label data-g="break"><span class="gx"></span>最快回本<input type="checkbox"></label>
+          </div>
+          <div class="hint" id="goalHint"></div></div>
+      </div>
+    </div>
+
+    <main>
+      <div class="results-head">
+        <div class="rt">商品排行榜　<span class="by" id="rt-by"></span></div>
+        <div class="rc" id="rt-cnt"></div>
+      </div>
+      <div class="sortnote" id="sortnote"></div>
+      <div id="results"></div>
+    </main>
+  </div>
+</div>
+<div class="pagetag">找商品・推薦引擎</div>
+
+<script>
+/* ── 商品資料（官方DM保單利益試算；分紅取中分紅、利變取DM假設宣告利率，皆非保證；固定型為保證值） ── */
+var PRODUCTS=[
+ {id:'kgi-md',name:'美固多多美元養老保險－定期給付型',insurer:'凱基人壽',bigCat:'儲蓄養老',subCat:'固定養老',currency:'美元',ageMin:0,ageMax:82,guaranteed:true,illusAge:40,illusSex:'男',
+  source:{note:'凱基美固多多 DM 115.01.01版（固定養老，現金價值為保證值）'},
+  variants:[
+    {payLabel:'躉繳',payTerm:1,maturityYear:7,annualPremium:120000,faceAmount:123319,
+     surrenderValue:{1:89789,2:93414,3:128264,4:133419,5:138771,6:144320,7:151596},
+     deathBenefit:{1:191551,2:174373,3:181378,4:188666,5:196250,6:204081,7:212232}},
+    {payLabel:'2年期',payTerm:2,maturityYear:7,annualPremium:100000,faceAmount:103817,
+     surrenderValue:{1:70907,2:151293,3:207748,4:216095,5:224764,6:233754,7:245538},
+     deathBenefit:{1:151272,2:282413,3:293781,4:305585,5:317857,6:330553,7:343748}}]},
+ {id:'nan-mfb',name:'滿福保美元利率變動型終身壽險（定期給付型）',insurer:'南山人壽',bigCat:'家庭保障',subCat:'終身壽險',currency:'美元',ageMin:0,ageMax:84,guaranteed:false,illusAge:40,illusSex:'男',
+  source:{note:'南山滿福保 DM 2026/01・躉繳・假設宣告利率4.3%（非保證；身故金有遞減特性）'},
+  variants:[{payLabel:'躉繳',payTerm:1,maturityYear:null,annualPremium:32836,
+    surrenderValue:{1:21818,2:22936,3:27031,4:29652,5:33517,6:34751,7:36312,10:40384,20:56634,30:76688,40:97227,41:99174,42:101388,71:202284},
+    deathBenefit:{1:51322,2:47660,3:49717,4:130543,5:131026,6:131465,7:137832,10:139020,20:142841,30:146253,40:148100,41:147846,42:142902,71:202284}}]},
+ {id:'nan-ftbb',name:'豐傳保倍美元利率變動型終身壽險（定期給付型）',insurer:'南山人壽',bigCat:'家庭保障',subCat:'終身壽險',currency:'美元',ageMin:0,ageMax:80,guaranteed:false,illusAge:40,illusSex:'男',
+  source:{note:'南山豐傳保倍 DM 2026/01・6年期・假設宣告利率4.3%（非保證）'},
+  variants:[{payLabel:'6年期',payTerm:6,maturityYear:null,annualPremium:15600,
+    surrenderValue:{1:7071,2:19248,3:32035,4:48254,5:70529,6:95468,7:99854,10:110922,33:227009,34:232660,41:272185,42:278193,71:433576},
+    deathBenefit:{1:17216,2:40412,3:67060,4:94832,5:123809,6:357140,7:375279,10:378570,33:401526,34:402173,41:400655,42:391466,71:433576}}]},
+ {id:'kgi-cfja',name:'傳富久安美元利率變動型終身壽險－定期給付型',insurer:'凱基人壽',bigCat:'家庭保障',subCat:'終身壽險',currency:'美元',ageMin:0,ageMax:80,guaranteed:false,illusAge:40,illusSex:'男',
+  source:{note:'凱基傳富久安 DM・6年期・假設宣告利率4.3%（非保證）'},
+  variants:[{payLabel:'6年期',payTerm:6,maturityYear:null,annualPremium:30000,
+    surrenderValue:{1:13492,2:36435,3:60471,4:85727,5:119208,6:181651,7:190713,8:198275,9:206126,10:214276,20:312992,30:449516,40:623032,50:821413,60:1032274,70:1265786},
+    deathBenefit:{1:455843,2:456650,3:458773,4:462206,5:466944,6:472981,7:480312,8:487757,9:495316,10:502993,20:586629,30:684167,40:797922,50:930596,60:1085327,70:1265786}}]},
+ {id:'twl-zwf',name:'臻威豐美元分紅終身壽險',insurer:'台灣人壽',bigCat:'家庭保障',subCat:'終身壽險',currency:'美元',ageMin:0,ageMax:70,guaranteed:false,illusAge:40,illusSex:'男',
+  source:{note:'台壽臻威豐 DM・6年期・中分紅（紅利非保證）'},
+  variants:[{payLabel:'6年期',payTerm:6,maturityYear:null,annualPremium:18066,
+    surrenderValue:{1:6076,2:16298,3:26738,4:43734,5:57894,6:109705,7:112342,8:114256,9:116243,10:118312,20:141622,30:168140,40:195382,50:221486,60:253495,70:521486},
+    deathBenefit:{1:19948,2:39896,3:59844,4:345262,5:489338,6:739011,7:733412,8:727774,9:722095,10:716370,20:808970,30:910289,40:1059366,50:1224383,60:1367652,70:1521026}}]},
+ {id:'twl-zfs',name:'珍豐收美元分紅終身壽險',insurer:'台灣人壽',bigCat:'儲蓄養老',subCat:'分紅',currency:'美元',ageMin:0,ageMax:70,guaranteed:false,illusAge:40,illusSex:'男',
+  source:{note:'台壽珍豐收 DM・2年期・中分紅（紅利非保證）'},
+  variants:[{payLabel:'2年期',payTerm:2,maturityYear:null,annualPremium:34055,
+    surrenderValue:{1:15323,2:37178,3:40121,4:68704,5:73970,6:83098,7:86538,8:90362,9:94204,10:98065,20:148189,30:237991,40:403646,50:713155,60:1301891,70:2680748},
+    deathBenefit:{1:35000,2:70000,3:70096,4:91495,5:92510,6:93565,7:94665,8:96525,9:98702,10:100938,20:115282,30:145610,70:2680748}}]},
+ {id:'fub-pfx',name:'富美優利外幣分紅終身保險（PFX）',insurer:'富邦人壽',bigCat:'儲蓄養老',subCat:'分紅',currency:'美元',ageMin:0,ageMax:80,guaranteed:false,illusAge:50,illusSex:'男',
+  source:{note:'富邦富美優利 DM・3年期・最可能紅利（中分紅）。另有「可能紅利為零」之保證底'},
+  variants:[{payLabel:'3年期',payTerm:3,maturityYear:null,annualPremium:33488,
+    surrenderValue:{1:19329,2:43312,3:68541,4:72000,5:100668,6:104913,7:110259,8:115072,9:120002,10:99427,20:114937,30:136121,40:163460,48:203994,49:213864},
+    survivalInc:{10:25668,20:31096,30:31788,40:32438,48:16324},
+    deathBenefit:{1:36074,2:71051,3:108780,4:147306,5:148833,6:149155,7:149505,8:150003,9:150414,10:150794,20:157347,30:169136,40:186669,48:209950,49:214928}}]},
+ {id:'aia-zys',name:'鍾愛一生美元利率變動型還本終身保險',insurer:'友邦人壽',bigCat:'儲蓄養老',subCat:'美元利變還本',currency:'美元',ageMin:0,ageMax:69,guaranteed:false,illusAge:50,illusSex:'男',
+  source:{note:'友邦鍾愛一生 DM 範例二・50歲男・6年期・守護基金75歲一次給付・假設宣告利率4.2%。領回採DM「總領回金額」欄'},
+  variants:[{payLabel:'6年期',payTerm:6,maturityYear:null,annualPremium:50832,
+    surrenderValue:{1:24626,2:61304,3:99811,4:148958,5:216181,6:292683,21:530995,25:623562,26:641737,31:742857,41:999552,50:1369911},
+    deathBenefit:{1:55974,2:113167,3:172027,4:237853,5:308431,6:381904,21:634427,25:653929,26:486763,31:592800,41:862005,50:1192328}}]},
+ {id:'bnp-fssx',name:'豐收雙享終身保險（定期給付型）',insurer:'法國巴黎人壽',bigCat:'儲蓄養老',subCat:'分紅',currency:'台幣',ageMin:0,ageMax:70,guaranteed:false,illusAge:40,illusSex:'男',
+  source:{note:'巴黎豐收雙享 DM・2年期・中分紅・情況一現金給付。領回採DM「解約金+終期紅利+累積已領生存金+累積已領紅利」欄'},
+  variants:[{payLabel:'2年期',payTerm:2,maturityYear:null,annualPremium:1505142,
+    surrenderValue:{1:771431,2:1703411,3:1768698,4:1942305,5:2224928,6:3386740,7:3456576,8:3526152,9:3595382,10:3664166,20:4337852,30:5073206,40:5831886,50:6660669,60:7663923,70:8963829},
+    deathBenefit:{1:1900000,2:3318123,3:3390471,4:3452143,5:3513904,6:4265053,7:4335331,8:4405283,9:4474818,10:4543830,20:4780052,30:5295323,40:5876751,50:6705698,60:7663923,70:8963829}}]},
+ {id:'fub-ola6',name:'金來寶小額終身壽險（OLA6）',insurer:'富邦人壽',bigCat:'家庭保障',subCat:'終身壽險',currency:'台幣',ageMin:0,ageMax:84,guaranteed:true,illusAge:55,illusSex:'女',termsNote:'DM載4種繳費年期，本表僅試算其一',
+  source:{note:'富邦金來寶OLA6 DM 2026/01・55歲女・小額終身壽險（保障型，現金價值為保證值）'},
+  variants:[{payLabel:'6年期',payTerm:6,maturityYear:null,annualPremium:50391,
+    surrenderValue:{1:24300,2:69000,3:119700,4:175950,5:236050,10:314500,20:371500,56:500000},
+    deathBenefit:{1:52175,2:104345,3:156520,4:500000,5:500000,10:500000,20:500000,56:500000}}]},
+ {id:'fub-xtw1',name:'安享定期壽險（XTW1）',insurer:'富邦人壽',bigCat:'家庭保障',subCat:'定期壽險',currency:'台幣',ageMin:15,ageMax:60,guaranteed:true,illusAge:40,illusSex:'男',termsNote:'保險年期10/15/20/25/30年（繳費年期同保險年期）',
+  source:{note:'富邦安享定期壽險XTW1 DM 2026/04・40歲男・20年期範例（純保障型，無解約金／滿期金；提早解約對保戶不利）'},
+  variants:[{payLabel:'20年期',payTerm:20,maturityYear:null,annualPremium:37620,faceAmount:5000000}]}
+];
+
+/* ── 計算核心 ── */
+function irr(cf){function npv(r){var s=0;for(var t=0;t<cf.length;t++)s+=(cf[t]||0)/Math.pow(1+r,t);return s;}var lo=-0.95,hi=1.5,flo=npv(lo),fhi=npv(hi);if(flo*fhi>0)return null;for(var i=0;i<260;i++){var m=(lo+hi)/2,fm=npv(m);if(Math.abs(fm)<1e-6)return m;if(flo*fm<0){hi=m;}else{lo=m;flo=fm;}}return(lo+hi)/2;}
+function keysNum(o){return Object.keys(o).map(Number).sort(function(a,b){return a-b;});}
+function nearestExit(ks,h){var e=null;for(var i=0;i<ks.length;i++){if(ks[i]<=h)e=ks[i];}return e==null?ks[0]:e;}
+function resultAtYear(v,ey){var cf=[];for(var k=0;k<v.payTerm;k++)cf[k]=(cf[k]||0)-v.annualPremium;var sc=0;if(v.survivalInc){var sk=keysNum(v.survivalInc);for(var j=0;j<sk.length;j++){var y=sk[j];if(y<=ey){cf[y]=(cf[y]||0)+v.survivalInc[y];sc+=v.survivalInc[y];}}}cf[ey]=(cf[ey]||0)+v.surrenderValue[ey];return {irr:irr(cf),payout:v.surrenderValue[ey]+sc};}
+function deathAt(v,y){if(!v.deathBenefit)return v.faceAmount!=null?v.faceAmount:null;return v.deathBenefit[nearestExit(keysNum(v.deathBenefit),y)];}
+
+function baseCcy(){return (S.curs.length===1&&S.curs[0]==='美元')?'美元':'台幣';}
+function baseToProd(val,prodCcy){var bc=baseCcy(),rate=Number(S.rate)||32.5;if(prodCcy===bc)return val;if(bc==='台幣'&&prodCcy==='美元')return val/rate;if(bc==='美元'&&prodCcy==='台幣')return val*rate;return val;}
+function toBase(val,prodCcy){var bc=baseCcy(),rate=Number(S.rate)||32.5;if(prodCcy===bc)return val;if(bc==='台幣'&&prodCcy==='美元')return val*rate;if(bc==='美元'&&prodCcy==='台幣')return val/rate;return val;}
+
+function evalVariant(v,p,S){
+  var budget=Number(S.amount)||0;
+  var desiredAnnualBase=S.mode==='年繳'?budget:budget/v.payTerm;
+  var desiredAnnualProd=baseToProd(desiredAnnualBase,p.currency);
+  var scale=v.annualPremium>0?desiredAnnualProd/v.annualPremium:1;
+  var total=v.annualPremium*v.payTerm;
+  var o={v:v,scale:scale,total:total,annualProd:v.annualPremium*scale,totalProd:total*scale,annualBase:toBase(v.annualPremium*scale,p.currency),totalBase:toBase(total*scale,p.currency)};
+  if(v.surrenderValue){
+    var ks=keysNum(v.surrenderValue),maxY=ks[ks.length-1];
+    var ey=Number(S.evalYear)||20;
+    var repE=nearestExit(ks,ey);
+    o.rep=resultAtYear(v,repE);o.lng=resultAtYear(v,maxY);
+    o.repIRR=o.rep.irr;o.repExit=repE;o.lngExit=maxY;o.lngAge=p.illusAge+maxY;
+    var be=null,cs=0;
+    for(var a=0;a<ks.length;a++){var yy=ks[a];if(v.survivalInc&&v.survivalInc[yy]!=null)cs+=v.survivalInc[yy];var paid=v.annualPremium*Math.min(v.payTerm,yy);if(v.surrenderValue[yy]+cs>=paid){be=yy;break;}}
+    o.breakeven=be;
+    var cy=v.deathBenefit?nearestExit(keysNum(v.deathBenefit),ey):null;
+    var faceAt=v.deathBenefit?v.deathBenefit[cy]:v.faceAmount;
+    o.faceYear=cy;o.faceProd=faceAt!=null?faceAt*scale:null;o.faceBase=faceAt!=null?toBase(faceAt*scale,p.currency):null;
+    o.coverMultiple=faceAt!=null?faceAt/total:null;
+  } else if(v.claimCap){
+    o.claimLeverage=v.claimCap/v.annualPremium;o.faceProd=v.claimCap*scale;o.faceBase=toBase(v.claimCap*scale,p.currency);
+  } else if(v.faceAmount){
+    o.faceProd=v.faceAmount*scale;o.faceBase=toBase(v.faceAmount*scale,p.currency);o.coverMultiple=v.faceAmount/total;o.faceYear=null;o.termLife=true;
+  }
+  return o;
+}
+
+var GOALDEF={
+  return:{label:'報酬最大化',metric:'IRR',face:'f-return',asc:false,
+    val:function(b){return b.repIRR;},
+    big:function(b){return fmtPct(b.repIRR)||'—';},na:function(b){return b.repIRR==null;},
+    sub:function(b){return b.breakeven?('回本第'+b.breakeven+'年'):'—';},ng:true},
+  protect:{label:'保障最大化',metric:'保障倍數',face:'f-protect',asc:false,
+    val:function(b){return b.coverMultiple;},
+    big:function(b){return fmtX(b.coverMultiple)||'—';},na:function(b){return b.coverMultiple==null;},
+    sub:function(b,p){return '身故金 '+(b.faceProd!=null?cnNum(b.faceProd,p.currency):'—')+'（第'+(b.faceYear||S.evalYear)+'年）';}},
+  break:{label:'最快回本',metric:'損益兩平',face:'f-return',asc:true,
+    val:function(b){return b.breakeven;},
+    big:function(b){return b.breakeven?(b.breakeven+' 年'):'—';},na:function(b){return b.breakeven==null;},
+    sub:function(b){return 'IRR '+(fmtPct(b.repIRR)||'—');}}
+};
+var GOALORDER=['return','protect','break'];
+
+function fmtPct(v){return v==null?null:(v*100).toFixed(2)+'%';}
+function curSym(c){return c==='美元'?'US$':'NT$';}
+function money(v,c){return v==null?'—':curSym(c)+Math.round(v).toLocaleString();}
+function fmtX(v){return v==null?null:v.toFixed(2)+'倍';}
+function cnNum(v,c){if(v==null)return '—';var s=curSym(c),neg=v<0?'-':'',a=Math.abs(v);if(a>=1e8)return s+neg+(Math.round(a/1e8*100)/100)+'億';if(a>=1e4)return s+neg+(Math.round(a/1e4*10)/10)+'萬';return s+neg+Math.round(a).toLocaleString();}
+function shortNum(v,c){return cnNum(v,c);}
+
+var S={age:40,sex:'男',mode:'總繳',amount:3000000,rate:32.5,evalYear:20,goals:['return'],
+  subs:['固定養老','美元利變還本','分紅','終身壽險','定期壽險'],curs:['台幣','美元'],open:{}};
+var CHARTS={};
+
+function selectedGoals(){var g=GOALORDER.filter(function(x){return S.goals.indexOf(x)>=0;});return g.length?g:['return'];}
+function syncRate(){var both=S.curs.indexOf('台幣')>=0&&S.curs.indexOf('美元')>=0;document.getElementById('rateField').style.display=both?'':'none';document.getElementById('amountLabel').textContent='投入金額（'+baseCcy()+'）';}
+function setKindSummary(){var names=['固定養老','美元利變還本','分紅','終身壽險','定期壽險'];var sel=names.filter(function(n){return S.subs.indexOf(n)>=0;});document.getElementById('kindSummary').textContent=(sel.length===names.length?'全部':(sel.length===0?'未選':sel.join('、')));}
+function setGoalHint(){document.getElementById('goalHint').textContent=selectedGoals().length>1?'複選：以各目的排名綜合排序，卡片顯示對應指標。':GOALDEF[selectedGoals()[0]].metric+' 由高至低排序。';}
+
+/* ── 互動式折線圖 ── */
+function chartSVG(b,p,cid){
+  var v=b.v,scale=b.scale,cap=Number(S.evalYear)||30;
+  var allks=keysNum(v.surrenderValue);
+  var years=allks.filter(function(y){return y<=cap;});if(years.length<2)years=allks.slice(0,Math.min(8,allks.length));
+  var paid=years.map(function(y){return v.annualPremium*Math.min(v.payTerm,y)*scale;});
+  var death=years.map(function(y){var d=deathAt(v,y);return d!=null?d*scale:null;});
+  var payo=years.map(function(y){return resultAtYear(v,y).payout*scale;});
+  var maxV=0;[paid,death,payo].forEach(function(arr){arr.forEach(function(x){if(x!=null&&x>maxV)maxV=x;});});if(maxV<=0)maxV=1;
+  var W=960,H=300,L=70,R=20,T=16,Bm=36,pw=W-L-R,ph=H-T-Bm,n=years.length;
+  function X(i){return L+pw*i/((n-1)||1);}function Y(val){return T+ph*(1-val/maxV);}
+  function pts(arr){var s=[];for(var i=0;i<n;i++){if(arr[i]==null)continue;s.push(X(i).toFixed(1)+','+Y(arr[i]).toFixed(1));}return s;}
+  function poly(arr,col){return '<polyline fill="none" stroke="'+col+'" stroke-width="2.4" stroke-linejoin="round" points="'+pts(arr).join(' ')+'"/>';}
+  // 領回面積（hero）
+  var pp=pts(payo),area='';
+  if(pp.length>1){area='<polygon fill="url(#g'+cid+')" points="'+X(0).toFixed(1)+','+(T+ph)+' '+pp.join(' ')+' '+X(n-1).toFixed(1)+','+(T+ph)+'"/>';}
+  function dots(arr,col){var s='';for(var i=0;i<n;i++){if(arr[i]==null)continue;s+='<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(arr[i]).toFixed(1)+'" r="2.8" fill="'+col+'"/>';}return s;}
+  var grid='';for(var g=0;g<=2;g++){var gy=T+ph*g/2,val=maxV*(1-g/2);grid+='<line x1="'+L+'" y1="'+gy.toFixed(1)+'" x2="'+(W-R)+'" y2="'+gy.toFixed(1)+'" stroke="#eee5d2"/><text x="'+(L-7)+'" y="'+(gy+3.5).toFixed(1)+'" text-anchor="end" font-size="9.5" fill="#a8a193">'+shortNum(val,p.currency)+'</text>';}
+  var xl='';for(var i2=0;i2<n;i2++){xl+='<text x="'+X(i2).toFixed(1)+'" y="'+(H-13)+'" text-anchor="middle" font-size="9" fill="#a8a193">'+years[i2]+'</text>';}
+  xl+='<text x="'+(L+pw/2)+'" y="'+(H-1)+'" text-anchor="middle" font-size="9" fill="#bdb6a6">保單年度（年・各揭露點等距）</text>';
+  var guide='<line class="cguide" x1="0" x2="0" y1="'+T+'" y2="'+(T+ph)+'" stroke="#c8a06d" stroke-width="1" stroke-dasharray="3 3" style="display:none"/>';
+  var svg='<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="max-width:100%;display:block" xmlns="http://www.w3.org/2000/svg">'+
+    '<defs><linearGradient id="g'+cid+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bf6b3a" stop-opacity="0.20"/><stop offset="1" stop-color="#bf6b3a" stop-opacity="0.02"/></linearGradient></defs>'+
+    grid+area+poly(paid,'var(--c-paid)')+poly(death,'var(--c-death)')+poly(payo,'var(--c-pay)')+
+    dots(paid,'var(--c-paid)')+dots(death,'var(--c-death)')+dots(payo,'var(--c-pay)')+guide+xl+'</svg>';
+  CHARTS[cid]={years:years,paid:paid,death:death,payo:payo,cur:p.currency,age:p.illusAge,total:b.totalProd,W:W,L:L,pw:pw,n:n};
+  return '<div class="chartwrap" data-cid="'+cid+'">'+svg+'<div class="chart-tip"></div>'+
+    '<div class="chart-legend"><span><i style="background:var(--c-death)"></i>身故保障</span><span><i style="background:var(--c-pay)"></i>解約／領回</span><span><i style="background:var(--c-paid)"></i>累計保費</span></div></div>';
+}
+function attachCharts(){
+  var wraps=document.querySelectorAll('.chartwrap[data-cid]');
+  for(var w=0;w<wraps.length;w++){(function(wrap){
+    var cid=wrap.getAttribute('data-cid'),d=CHARTS[cid];if(!d)return;
+    var svg=wrap.querySelector('svg'),tip=wrap.querySelector('.chart-tip'),guide=wrap.querySelector('.cguide');
+    function X(i){return d.L+d.pw*i/((d.n-1)||1);}
+    svg.addEventListener('mousemove',function(ev){
+      var rect=svg.getBoundingClientRect();if(!rect.width)return;
+      var vbX=(ev.clientX-rect.left)/rect.width*d.W;
+      var bi=Math.round((vbX-d.L)/d.pw*((d.n-1)||1));if(bi<0)bi=0;if(bi>d.n-1)bi=d.n-1;
+      var yr=d.years[bi],gx=X(bi);
+      if(guide){guide.setAttribute('x1',gx);guide.setAttribute('x2',gx);guide.style.display='';}
+      function m(v){return v==null?'—':(d.cur==='美元'?'US$':'NT$')+Math.round(v).toLocaleString();}
+      var cm=(d.death[bi]!=null&&d.total>0)?(d.death[bi]/d.total):null;
+      tip.innerHTML='<b>第'+yr+'年・'+(d.age+yr)+'歲</b>'+
+        '<div><i style="background:var(--c-death)"></i>身故 '+m(d.death[bi])+'</div>'+
+        '<div><i style="background:var(--c-pay)"></i>領回 '+m(d.payo[bi])+'</div>'+
+        '<div><i style="background:var(--c-paid)"></i>保費 '+m(d.paid[bi])+'</div>'+
+        '<div><i style="background:var(--teal-deep)"></i>保障倍數 '+(cm!=null?cm.toFixed(2)+'倍':'—')+'</div>';
+      tip.style.display='block';
+      var wr=wrap.getBoundingClientRect(),lx=ev.clientX-wr.left+14,ty=ev.clientY-wr.top-8;
+      if(lx>wr.width-160)lx=ev.clientX-wr.left-160;if(lx<4)lx=4;
+      tip.style.left=lx+'px';tip.style.top=ty+'px';
+    });
+    svg.addEventListener('mouseleave',function(){tip.style.display='none';if(guide)guide.style.display='none';});
+  })(wraps[w]);}
+}
+
+function trajRows(b,p){
+  var v=b.v,ks=keysNum(v.surrenderValue),targets=[1,5,10,20,30,ks[ks.length-1]],seen={},rows=[];
+  for(var i=0;i<targets.length;i++){var y=nearestExit(ks,targets[i]);if(seen[y])continue;seen[y]=1;var r=resultAtYear(v,y),dz=deathAt(v,y);rows.push({year:y,age:p.illusAge+y,paid:v.annualPremium*Math.min(v.payTerm,y)*b.scale,death:dz!=null?dz*b.scale:null,payout:r.payout*b.scale,irr:r.irr});}
+  rows.sort(function(a,c){return a.year-c.year;});return rows;
+}
+
+function render(){
+  var a=Number(S.age)||0, goals=selectedGoals();
+  var items=PRODUCTS.filter(function(p){return S.subs.indexOf(p.subCat)>=0&&S.curs.indexOf(p.currency)>=0&&a>=p.ageMin&&a<=p.ageMax;})
+    .map(function(p){var evs=p.variants.map(function(v){return evalVariant(v,p,S);});return {p:p,evs:evs};});
+  // 每商品依「主目的」（goals[0]）擇優繳別
+  var pg=goals[0],pdef=GOALDEF[pg];
+  items.forEach(function(it){var best=it.evs[0];for(var i=1;i<it.evs.length;i++){var x=pdef.val(it.evs[i]),y=pdef.val(best);if(x==null)continue;if(y==null){best=it.evs[i];continue;}if(pdef.asc?x<y:x>y)best=it.evs[i];}it.best=best;});
+  // 綜合排名
+  var rankSum={};goals.forEach(function(g){var def=GOALDEF[g];var arr=items.slice().sort(function(x,y){function d(v){return v==null?(def.asc?Infinity:-Infinity):v;}var vx=def.val(x.best),vy=def.val(y.best);return def.asc?d(vx)-d(vy):d(vy)-d(vx);});arr.forEach(function(it,idx){rankSum[it.p.id]=(rankSum[it.p.id]||0)+idx;});});
+  items.sort(function(x,y){return (rankSum[x.p.id]||0)-(rankSum[y.p.id]||0);});
+
+  document.getElementById('rt-by').textContent=goals.length>1?'綜合 '+goals.map(function(g){return GOALDEF[g].metric;}).join('＋'):'依「'+GOALDEF[goals[0]].metric+'」';
+  document.getElementById('rt-cnt').textContent=items.length+' 項';
+  document.getElementById('sortnote').textContent=(S.mode==='年繳'?'年繳':'總繳')+' '+curSym(baseCcy())+(Number(S.amount)||0).toLocaleString()+'・試算持有第'+S.evalYear+'年'+(goals.length>1?'・綜合排序':'');
+
+  CHARTS={};var cidc=0,out='';
+  if(items.length===0)out='<div class="empty">目前條件下沒有符合的商品。放寬險種、幣別或調整年齡後再試。</div>';
+  for(var i=0;i<items.length;i++){
+    var p=items[i].p,b=items[i].best,evs=items[i].evs,isTop=i===0,isOpen=!!S.open[p.id];
+    var proj=!p.guaranteed&&b.v.surrenderValue,usd=p.currency==='美元',bc=baseCcy();
+    function both(prod,base){if(prod==null)return '—';return money(prod,p.currency)+(p.currency!==bc?' <small>約'+money(base,bc)+'</small>':'');}
+    var reco='';
+    if(b.v.surrenderValue){
+      var mval=function(e){if(pg==='return')return fmtPct(e.repIRR)||'—';if(pg==='protect')return fmtX(e.coverMultiple)||'—';if(pg==='break')return e.breakeven?e.breakeven+'年':'—';return '';};
+      var others=evs.filter(function(e){return e!==b;});
+      var altTxt=evs.length>1?('；依「'+pdef.label+'」<b>建議選用'+b.v.payLabel+'</b>（'+pdef.metric+' '+mval(b)+'，'+others.map(function(e){return e.v.payLabel+' '+mval(e);}).join('、')+'）'):'';
+      if(b.v.maturityYear)reco='<b>建議</b>：本商品為養老險，保險期間至第'+b.v.maturityYear+'年滿期、屆期領回滿期金（此為保險期間，非繳費年期）'+(altTxt||('，滿期 IRR 約 '+(fmtPct(b.repIRR)||'—')))+'。';
+      else reco='<b>建議</b>：約第 '+(b.breakeven||'—')+' 年回本；持有至第'+b.repExit+'年 IRR 約 '+(fmtPct(b.repIRR)||'—')+'，拉長到第'+b.lngExit+'年／'+b.lngAge+'歲（含祝壽）約 '+(fmtPct(b.lng?b.lng.irr:null)||'—')+altTxt+'。';
+    } else if(b.claimLeverage!=null){reco='<b>建議</b>：保障型，保障槓桿 = 年理賠上限 ÷ 年繳保費 = '+b.claimLeverage.toFixed(1)+' 倍，不適用 IRR。';}
+    else if(b.termLife){reco='<b>建議</b>：定期壽險（純保障，無解約金／滿期金，IRR 不適用）。以小保費換高保障：保障倍數 '+(fmtX(b.coverMultiple)||'—')+'，身故保額 '+cnNum(b.faceProd,p.currency)+'（保險期間內定額）。提早解約對保戶不利。';}
+
+    // 指標 tiles（對應所選目的）+ 成本
+    var tiles='';
+    for(var gi=0;gi<goals.length;gi++){var g=goals[gi],def=GOALDEF[g];var na=def.na(b);
+      var tlabel=(g==='return')?('IRR（第'+(b.repExit||'-')+'年）'):def.metric;
+      tiles+='<div class="tile '+def.face+'"><div class="tl">'+tlabel+'</div>'+
+        '<div class="tv'+(na?' na':'')+'">'+def.big(b,p)+((def.ng&&proj&&!na)?'<span class="ng">非保證</span>':'')+'</div>'+
+        '<div class="ts">'+def.sub(b,p)+'</div></div>';}
+    tiles+='<div class="tile f-cost"><div class="tl">保費（年繳）</div><div class="tv" style="font-size:16px;color:var(--ink)">'+cnNum(b.annualProd,p.currency)+'</div><div class="ts">總繳 '+cnNum(b.totalProd,p.currency)+(p.currency!==bc?' <small>約'+cnNum(b.totalBase,bc)+'</small>':'')+'</div></div>';
+
+    out+='<div class="card'+(isTop?' top':'')+'"><div class="rankbar"></div>'+(isTop?'<div class="bestpill">★ 最適配</div>':'')+
+      '<div class="card-head"><div class="rankno">'+(i+1)+'</div>'+
+      '<div class="card-title"><div class="nm">'+p.name+'</div>'+
+      '<div class="ins">'+p.insurer+'・透過永豐保代招攬</div>'+
+      '<div class="tags"><span class="tag t-big">'+p.bigCat+'</span><span class="tag t-sub">'+p.subCat+'</span>'+
+      '<span class="tag t-cur">'+p.currency+'</span><span class="tag t-term">繳別 '+p.variants.map(function(vv){return vv.payLabel;}).join('、')+(p.termsNote?'＋':'')+'</span>'+
+      '<span class="tag t-age">範例 '+p.illusAge+'歲'+p.illusSex+'</span></div></div></div>'+
+      (reco?'<div class="reco">'+reco+'</div>':'')+
+      '<div class="tiles">'+tiles+'</div>'+
+      '<button type="button" class="detail-toggle" data-id="'+p.id+'" aria-expanded="'+isOpen+'"><span class="ar">▸</span> 逐年走勢與明細</button>';
+    if(isOpen){
+      var detail='<div class="detail">';
+      if(b.v.surrenderValue){var cid='c'+(cidc++);detail+='<div class="dh">逐年走勢（'+b.v.payLabel+'，已按預算換算'+(usd?'，'+p.currency:'')+'；滑鼠移到圖上看數值）</div>'+chartSVG(b,p,cid);}
+      if(evs.length>1){var cb='<div class="dh">繳別比較</div><table class="dtable"><tr><th>繳別</th><th>年繳</th><th>總繳</th><th>IRR（第N年）</th><th>回本</th></tr>';for(var e2=0;e2<evs.length;e2++){var ev=evs[e2];cb+='<tr'+(ev===b?' class="hi"':'')+'><td>'+ev.v.payLabel+(ev===b?' ★':'')+'</td><td>'+money(ev.annualProd,p.currency)+'</td><td>'+money(ev.totalProd,p.currency)+'</td><td class="hicell">'+(fmtPct(ev.repIRR)||'—')+'</td><td>'+(ev.breakeven?ev.breakeven+'年':'—')+'</td></tr>';}cb+='</table>';detail+=cb;}
+      if(b.v.surrenderValue){var rows=trajRows(b,p);var tt='<div class="dh">逐年明細</div><table class="dtable"><tr><th>年度</th><th>年齡</th><th>累計保費</th><th>身故金</th><th>解約／領回</th><th>IRR</th></tr>';for(var r=0;r<rows.length;r++){var rw=rows[r];tt+='<tr'+(rw.year===b.faceYear?' class="hi"':'')+'><td>第'+rw.year+'年</td><td>'+rw.age+'</td><td>'+money(rw.paid,p.currency)+'</td><td>'+money(rw.death,p.currency)+'</td><td>'+money(rw.payout,p.currency)+'</td><td>'+(fmtPct(rw.irr)||'—')+'</td></tr>';}tt+='</table>';detail+=tt;}
+      else if(b.claimLeverage!=null){detail+='<div class="dh">保障型</div><table class="dtable"><tr><th>年繳保費</th><th>年理賠上限</th><th>保障槓桿</th></tr><tr><td>'+money(b.annualProd,p.currency)+'</td><td>'+money(b.faceProd,p.currency)+'</td><td class="hicell">'+b.claimLeverage.toFixed(1)+' 倍</td></tr></table>';}
+      else if(b.termLife){detail+='<div class="dh">定期壽險（純保障）</div><table class="dtable"><tr><th>身故保額</th><th>年繳保費</th><th>總繳保費</th><th>保障倍數</th></tr><tr><td>'+money(b.faceProd,p.currency)+'</td><td>'+money(b.annualProd,p.currency)+'</td><td>'+money(b.totalProd,p.currency)+'</td><td class="hicell">'+(fmtX(b.coverMultiple)||'—')+'</td></tr></table><div class="assume" style="margin-top:8px">定期壽險於保險期間內提供定額身故保障，無儲蓄成分、無解約金與滿期金，故不計算 IRR 與損益兩平；提早解約對保戶不利。</div>';}
+      detail+='<div class="assume"><b>資料來源</b>：'+p.source.note+'。'+(p.termsNote?'<b>繳別</b>：'+p.termsNote+'。':'')+(p.guaranteed?'本商品為保證值。':'本商品為非保證之預估值，依保險公司實際宣告紅利／利率而變動。')+' 「繳別」僅列本表已建模之繳費年期，部分商品實際提供更多繳別，以商品 DM 為準。表列年度為官方 DM 揭露之保單年度，金額按官方範例線性等比換算，僅供內部試算。</div></div>';
+      out+=detail;
+    }
+    out+='</div>';
+  }
+  document.getElementById('results').innerHTML=out;
+  attachCharts();
+}
+
+/* ── 事件 ── */
+document.getElementById('age').addEventListener('input',function(e){S.age=e.target.value;render();});
+document.getElementById('amount').addEventListener('input',function(e){S.amount=e.target.value;render();});
+document.getElementById('rate').addEventListener('input',function(e){S.rate=e.target.value;render();});
+document.getElementById('evalYear').addEventListener('change',function(e){S.evalYear=e.target.value;render();});
+function segHandler(id,key){document.getElementById(id).addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;S[key]=b.getAttribute('data-v');var bs=this.querySelectorAll('button');for(var i=0;i<bs.length;i++)bs[i].setAttribute('aria-pressed',bs[i]===b);render();});}
+segHandler('sex','sex');segHandler('mode','mode');
+document.getElementById('curs').addEventListener('click',function(e){var btn=e.target.closest('button');if(!btn)return;var v=btn.getAttribute('data-v'),arr=S.curs,idx=arr.indexOf(v);if(idx>=0){if(arr.length>1)arr.splice(idx,1);}else arr.push(v);btn.setAttribute('aria-pressed',arr.indexOf(v)>=0);syncRate();render();});
+var kindBtn=document.getElementById('kindBtn'),kindPanel=document.getElementById('kindPanel');
+kindBtn.addEventListener('click',function(e){e.stopPropagation();kindPanel.hidden=!kindPanel.hidden;kindBtn.setAttribute('aria-expanded',!kindPanel.hidden);});
+kindPanel.addEventListener('click',function(e){e.stopPropagation();});
+kindPanel.addEventListener('change',function(e){var cb=e.target;if(cb.type!=='checkbox')return;var v=cb.getAttribute('data-v'),idx=S.subs.indexOf(v);if(cb.checked){if(idx<0)S.subs.push(v);}else{if(idx>=0)S.subs.splice(idx,1);}setKindSummary();render();});
+document.addEventListener('click',function(){if(!kindPanel.hidden){kindPanel.hidden=true;kindBtn.setAttribute('aria-expanded',false);}});
+document.getElementById('goals').addEventListener('change',function(e){var cb=e.target;if(cb.type!=='checkbox')return;var lab=cb.closest('label'),g=lab.getAttribute('data-g'),idx=S.goals.indexOf(g);if(cb.checked){if(idx<0)S.goals.push(g);lab.classList.add('on');lab.querySelector('.gx').textContent='✓';}else{if(S.goals.length>1){if(idx>=0)S.goals.splice(idx,1);lab.classList.remove('on');lab.querySelector('.gx').textContent='';}else{cb.checked=true;}}setGoalHint();render();});
+document.getElementById('results').addEventListener('click',function(e){var b=e.target.closest('.detail-toggle');if(!b)return;var id=b.getAttribute('data-id');S.open[id]=!S.open[id];render();});
+
+syncRate();setKindSummary();setGoalHint();render();
+</script>
+</body>
+</html>
